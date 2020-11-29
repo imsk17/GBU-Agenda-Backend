@@ -1,0 +1,7 @@
+.idea/
+config.env
+venv/
+__pycache__/
+db.sqlite
+hash.json
+*.py[cod]
