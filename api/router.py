@@ -92,7 +92,7 @@ async def teachers(section: Optional[str] = None, db: Session = Depends(get_db))
         ORDER BY tt_day, tt_period
         """)
         response = prettify_timetable(data)
-        return response
+        return {'days': response}
     except exc.SQLAlchemyError as err:
         LOGGER.error("INFO:     Database Error Occurred.")
         return JSONResponse({"error": err}, status_code=500)
