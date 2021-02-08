@@ -74,7 +74,7 @@ async def subject(subject: Optional[str] = None, db: Session = Depends(get_db)):
 
 
 @timetable.get("/timetable")
-async def teachers(section: Optional[str] = None, db: Session = Depends(get_db)):
+async def teachers(section: Optional[int] = None, db: Session = Depends(get_db)):
     try:
         data = db.execute(f"""
         SELECT tt_period as period, tt_day as day, M_Time_Table.Batch_Id as batch,
@@ -91,8 +91,11 @@ async def teachers(section: Optional[str] = None, db: Session = Depends(get_db))
         WHERE M_Time_Table.section_id='{section}'
         ORDER BY tt_day, tt_period
         """)
+        show = db.execute(f"SELECT * FROM Section WHERE Id = '{section}'")
+        for i in show:
+            show = dict(i)
         response = prettify_timetable(data)
-        return {'days': response}
+        return {'days': response, "show_tt": show["ShowTimeTable"]}
     except exc.SQLAlchemyError as err:
         LOGGER.error("INFO:     Database Error Occurred.")
         return JSONResponse({"error": err}, status_code=500)
