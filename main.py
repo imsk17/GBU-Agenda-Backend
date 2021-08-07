@@ -16,4 +16,4 @@ SentryAsgiMiddleware(gbu_agenda)
 
 if __name__ == "__main__":
     check_for_updates()
-    uvicorn.run("main:gbu_agenda", port=int(os.getenv("PORT", 5000)), host="0.0.0.0")
+    uvicorn.run("main:gbu_agenda", port=int(os.getenv("PORT", 5000)), host="0.0.0.0", reload=True)

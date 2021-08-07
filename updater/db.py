@@ -1,16 +1,12 @@
 import json
-import logging
 import os
-
+import logging
 import requests
-
-LOGGER = logging.getLogger(__name__)
 
 DB_PATH = "db.sqlite"
 HASH_PATH = "hash.json"
 HASH_URI = "https://raw.githubusercontent.com/mygbu/timetable/master/md5.html"
 DB_URI = "https://github.com/mygbu/timetable/blob/master/varun.sqlite?raw=true"
-
 
 def db_exists():
     return os.path.exists(DB_PATH)
@@ -37,7 +33,7 @@ def download_hash_and_db():
         open(DB_PATH, 'wb').write(r_db.content)
         print("Fetch Successful")
     except requests.exceptions.BaseHTTPError:
-        LOGGER.error("Some Error Occurred!!")
+        print("Some Error Occurred!!")
 
 
 def check_for_updates():
