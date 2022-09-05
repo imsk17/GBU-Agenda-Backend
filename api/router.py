@@ -10,6 +10,7 @@ from api.utility import prettify_timetable
 
 timetable = APIRouter()
 
+
 @timetable.get("/ping")
 async def ping():
     return JSONResponse({"message": "pong"}, status_code=200)
@@ -18,7 +19,8 @@ async def ping():
 @timetable.get("/schools")
 def schools(db: Session = Depends(get_db)):
     try:
-        data = db.execute("SELECT Name as name, FullName as full_name, id as id FROM School")
+        data = db.execute(
+            "SELECT Name as name, FullName as full_name, id as id FROM School")
         return [dict(d) for d in data]
     except exc.SQLAlchemyError as err:
         print("failed to fetch schools from database")
@@ -36,7 +38,7 @@ async def sections(school: str, db: Session = Depends(get_db)):
         Program.Code as program_code, Program.Name as program_name,
         Program.school, Program.IsActive as is_active 
         FROM Section 
-        INNER JOIN Program on Section.Program=Program.id WHERE school = :school
+        INNER JOIN Program on Section.Program=Program.id WHERE school = :school AND is_active = 1 AND Section.ShowTimeTable = 1
         """, {"school": school})
         return [dict(d) for d in data]
     except exc.SQLAlchemyError as err:
@@ -56,7 +58,7 @@ async def teachers(teacher_id: int = None, db: Session = Depends(get_db)):
         else:
             return JSONResponse({"error": "no teacher with that id found"}, status_code=404)
     except exc.SQLAlchemyError as err:
-        print(f"failed to fetch teachers from database {e}")
+        print(f"failed to fetch teachers from database {err}")
         return JSONResponse({"error": "failed to fetch teachers from database"}, status_code=500)
 
 
@@ -67,9 +69,9 @@ async def subject(subject: str, db: Session = Depends(get_db)):
     try:
         data = db.execute("""
         SELECT Subject.id as sub_id , Subject.name as sub_name, Subject.code as sub_code,
-        Subject.IsLab as is_lab, Subject.L, Subject.T, Subject.P, M_Department.Code
-        as dept_code, M_Department.name as dept_name, M_Department.SchoolCode as school
-        FROM Subject INNER JOIN M_Department on M_Department.Id = Subject.dept WHERE Subject.code = :subject
+        Subject.IsLab as is_lab, Subject.L, Subject.T, Subject.P, AV.Code
+        as dept_code, AV.dept as dept_name, AV.school as school
+        FROM Subject INNER JOIN ATView AV on Subject.code = AV.Code WHERE Subject.code = :subject
         """, {"subject": subject})
         s = [dict(d) for d in data]
         if s.__len__() > 0:
@@ -87,8 +89,8 @@ async def timetables(section: int = None, db: Session = Depends(get_db)):
     try:
         data = db.execute("""
         SELECT tt_period as period, tt_day as day, M_Time_Table.Batch_Id as batch,
-        Subject.code as sub_code, Subject.name as sub_name, Subject.isLab as is_lab, Subject.L as l, Subject.T as t, Subject.P as p,
-        Teacher.id as teacher_id, Teacher.abbr, Teacher.school as teacher_school, TRIM(Teacher.department, ' ') as teacher_dept,
+        Subject.code as sub_code, Subject.name as sub_name, Subject.isLab as is_lab, Subject.L as l,  Subject.T as t, Subject.P as p,
+        Teacher.id as teacher_id, Teacher.abbr, Teacher.school as teacher_school, TRIM(Teacher.department,  ' ') as teacher_dept,
         Teacher.name as teacher_name, Teacher.isActive as teacher_is_active,
         M_Room.room_id, TRIM(M_Room.Name, ' ') as room_name, M_Room.isLab as room_is_lab, M_Room.building
         FROM M_Time_Table
@@ -97,7 +99,7 @@ async def timetables(section: int = None, db: Session = Depends(get_db)):
         INNER JOIN CSF_Faculty ON CSF_Faculty.csf_id=M_Time_Table.csf_id
         INNER JOIN Teacher ON CSF_Faculty.faculty_id=Teacher.id
         INNER JOIN M_Room ON M_Room.room_id=M_Time_Table.room_id
-        WHERE M_Time_Table.section_id= :section_id
+        WHERE M_Time_Table.section_id= :section_id AND M_Time_Table.SessionId = (SELECT Id FROM Session WHERE (CurrentActive = 1))
         ORDER BY tt_day, tt_period
         """, {"section_id": section})
         show = db.execute(f"SELECT * FROM Section WHERE Id = '{section}'")
