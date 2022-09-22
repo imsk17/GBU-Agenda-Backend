@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from starlette.responses import JSONResponse
 
 from api.database import get_db
-from api.utility import prettify_timetable
+from api.utility import combine_periods, prettify_timetable
 
 timetable = APIRouter()
 
@@ -109,4 +109,32 @@ async def timetables(section: int = None, db: Session = Depends(get_db)):
         return {'days': response, "show_tt": show["ShowTimeTable"]}
     except exc.SQLAlchemyError as err:
         print(f"failed to fetch subject from database {e}")
+        return JSONResponse({"error": "failed to fetch subject from database"}, status_code=500)
+
+
+@timetable.get("/timetable/v2")
+async def timetables(section: int = None, db: Session = Depends(get_db)):
+    try:
+        data = db.execute("""
+        SELECT tt_period as period, tt_day as day, M_Time_Table.Batch_Id as batch,
+        Subject.code as sub_code, Subject.name as sub_name, Subject.isLab as is_lab, Subject.L as l,  Subject.T as t, Subject.P as p,
+        Teacher.id as teacher_id, Teacher.abbr, Teacher.school as teacher_school, TRIM(Teacher.department,  ' ') as teacher_dept,
+        Teacher.name as teacher_name, Teacher.isActive as teacher_is_active,
+        M_Room.room_id, TRIM(M_Room.Name, ' ') as room_name, M_Room.isLab as room_is_lab, M_Room.building
+        FROM M_Time_Table
+        INNER JOIN CSF on M_Time_Table.csf_id=CSF.csf_id
+        INNER JOIN Subject ON Subject.code=subject_code
+        INNER JOIN CSF_Faculty ON CSF_Faculty.csf_id=M_Time_Table.csf_id
+        INNER JOIN Teacher ON CSF_Faculty.faculty_id=Teacher.id
+        INNER JOIN M_Room ON M_Room.room_id=M_Time_Table.room_id
+        WHERE M_Time_Table.section_id= :section_id AND M_Time_Table.SessionId = (SELECT Id FROM Session WHERE (CurrentActive = 1))
+        ORDER BY tt_day, tt_period
+        """, {"section_id": section})
+        show = db.execute(f"SELECT * FROM Section WHERE Id = '{section}'")
+        for i in show:
+            show = dict(i)
+        response = prettify_timetable(data)
+        return {'days': combine_periods(response), "show_tt": show["ShowTimeTable"]}
+    except exc.SQLAlchemyError as err:
+        print(f"failed to fetch subject from database {err}")
         return JSONResponse({"error": "failed to fetch subject from database"}, status_code=500)
